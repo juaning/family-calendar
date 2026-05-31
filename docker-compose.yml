@@ -1,0 +1,20 @@
+services:
+  backend:
+    platform: linux/arm64
+    build:
+      context: ./backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  frontend:
+    platform: linux/arm64
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
