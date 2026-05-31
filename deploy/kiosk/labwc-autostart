@@ -1,2 +1,2 @@
 # labwc autostart — append this line to ~/.config/labwc/autostart on the Pi
-/home/pi/family-calendar/deploy/kiosk/kiosk.sh &
+bash "$HOME/family-calendar/deploy/kiosk/kiosk.sh" &
