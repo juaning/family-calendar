@@ -13,7 +13,13 @@ done
 rm -rf ~/.config/chromium/Default/Crash\ Reports
 rm -f ~/.config/chromium/Default/Last\ Session
 
-chromium-browser \
+CHROMIUM=$(which chromium-browser chromium 2>/dev/null | head -1)
+if [ -z "$CHROMIUM" ]; then
+  echo "ERROR: chromium-browser or chromium not found in PATH" >&2
+  exit 1
+fi
+
+$CHROMIUM \
   --kiosk \
   --noerrdialogs \
   --disable-infobars \

@@ -21,6 +21,12 @@
    # Edit .env — set TZ, ports, etc.
    ```
 
+4. **Create secrets directory** (for Google credentials — Phase 1):
+   ```bash
+   mkdir -p ~/family-calendar/secrets
+   ```
+   This directory is gitignored. Place `credentials.json` here in Phase 1.
+
 ## Start the app
 
 ```bash

@@ -5,7 +5,7 @@ app = FastAPI(title="Family Calendar API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8080"],  # tighten to explicit origin before adding credentials
     allow_methods=["*"],
     allow_headers=["*"],
 )

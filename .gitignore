@@ -4,6 +4,9 @@
 *.env
 credentials.json
 token.json
+secrets/
+!secrets/
+!secrets/.gitkeep
 
 # Backend runtime data
 backend/app/data/
