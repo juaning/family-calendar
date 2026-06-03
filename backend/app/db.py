@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS events (
     synced_at   TEXT NOT NULL,
     PRIMARY KEY (id, calendar_id)
 );
+
+CREATE TABLE IF NOT EXISTS calendar_prefs (
+    calendar_id TEXT PRIMARY KEY,
+    enabled     INTEGER NOT NULL DEFAULT 1
+);
 """
 
 

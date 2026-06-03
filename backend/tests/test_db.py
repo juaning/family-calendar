@@ -37,3 +37,9 @@ def test_get_conn_rolls_back_on_error(tmp_db):
     with get_conn() as conn:
         count = conn.execute("SELECT COUNT(*) FROM calendars").fetchone()[0]
     assert count == 0
+
+
+def test_init_creates_calendar_prefs_table(tmp_db):
+    with get_conn() as conn:
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "calendar_prefs" in tables
