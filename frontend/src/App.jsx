@@ -1,17 +1,20 @@
+import CalendarPane from './components/CalendarPane'
+import Sidebar from './components/Sidebar'
+
 export default function App() {
   return (
     <div style={{
       display: 'flex',
       height: '100vh',
-      alignItems: 'center',
-      justifyContent: 'center',
       background: '#0f172a',
-      color: '#f8fafc',
-      fontFamily: 'system-ui, sans-serif',
+      overflow: 'hidden',
     }}>
-      <h1 style={{ fontSize: '4rem', fontWeight: 300, letterSpacing: '0.05em' }}>
-        Family Calendar
-      </h1>
+      <div style={{ flex: '0 0 70%', height: '100%', minWidth: 0, overflow: 'hidden' }}>
+        <CalendarPane />
+      </div>
+      <div style={{ flex: '0 0 30%', height: '100%' }}>
+        <Sidebar />
+      </div>
     </div>
   )
 }
