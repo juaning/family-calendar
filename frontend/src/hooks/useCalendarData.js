@@ -46,5 +46,5 @@ export function useCalendarData() {
     return () => clearInterval(id)
   }, [fetchData])
 
-  return { calendars, events, status }
+  return { calendars, events, status, refetch: fetchData }
 }
