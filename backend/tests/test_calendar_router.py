@@ -79,3 +79,45 @@ def test_get_events_filters_by_date_range(client):
     data = resp.json()
     assert len(data) == 1
     assert data[0]["id"] == "in_range"
+
+
+def test_get_calendars_includes_enabled_true_when_pref_set(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?,?)",
+            ("juan@gmail.com", 1),
+        )
+    resp = client.get("/api/calendars")
+    data = resp.json()
+    assert data[0]["enabled"] is True
+
+
+def test_get_calendars_includes_enabled_false_when_pref_set(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?,?)",
+            ("juan@gmail.com", 0),
+        )
+    resp = client.get("/api/calendars")
+    data = resp.json()
+    assert data[0]["enabled"] is False
+
+
+def test_get_calendars_enabled_defaults_true_when_no_pref(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+        # No calendar_prefs row inserted
+    resp = client.get("/api/calendars")
+    data = resp.json()
+    assert data[0]["enabled"] is True

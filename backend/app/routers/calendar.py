@@ -10,7 +10,12 @@ router = APIRouter(prefix="/api")
 @router.get("/calendars")
 def get_calendars(db: sqlite3.Connection = Depends(get_db)):
     rows = db.execute(
-        "SELECT id, summary, background_color, foreground_color FROM calendars"
+        """
+        SELECT c.id, c.summary, c.background_color, c.foreground_color,
+               COALESCE(cp.enabled, 1) AS enabled
+        FROM   calendars c
+        LEFT   JOIN calendar_prefs cp ON c.id = cp.calendar_id
+        """
     ).fetchall()
     return [
         {
@@ -18,6 +23,7 @@ def get_calendars(db: sqlite3.Connection = Depends(get_db)):
             "summary": r["summary"],
             "backgroundColor": r["background_color"],
             "foregroundColor": r["foreground_color"],
+            "enabled": bool(r["enabled"]),
         }
         for r in rows
     ]
