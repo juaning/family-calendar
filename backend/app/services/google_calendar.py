@@ -31,6 +31,7 @@ def list_calendars() -> list[dict]:
             "summary": item.get("summary", item["id"]),
             "backgroundColor": item.get("backgroundColor", "#039be5"),
             "foregroundColor": item.get("foregroundColor", "#ffffff"),
+            "primary": item.get("primary", False),
         }
         for item in result.get("items", [])
     ]
