@@ -33,6 +33,20 @@ def _sync_once() -> None:
                 for c in calendars
             ],
         )
+        # Seed calendar_prefs for calendars we haven't seen before.
+        # Primary and holiday calendars default to disabled; all others default to enabled.
+        # Existing rows (user choices) are never overwritten.
+        for c in calendars:
+            existing = conn.execute(
+                "SELECT 1 FROM calendar_prefs WHERE calendar_id = ?", (c["id"],)
+            ).fetchone()
+            if existing is None:
+                is_holiday = "#holiday@group.v.calendar.google.com" in c["id"]
+                enabled = 0 if (c.get("primary") or is_holiday) else 1
+                conn.execute(
+                    "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?, ?)",
+                    (c["id"], enabled),
+                )
 
     cal_ids = [c["id"] for c in calendars]
     events = list_events(start, end, cal_ids)
