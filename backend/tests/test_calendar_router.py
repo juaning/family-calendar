@@ -162,3 +162,73 @@ def test_get_events_includes_enabled_calendar(client):
     assert resp.status_code == 200
     assert len(resp.json()) == 1
     assert resp.json()[0]["title"] == "Visible event"
+
+
+def test_patch_calendar_enabled_disables_calendar(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+    resp = client.patch(
+        "/api/calendars/enabled",
+        json={"id": "juan@gmail.com", "enabled": False},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "juan@gmail.com"
+    assert data["enabled"] is False
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT enabled FROM calendar_prefs WHERE calendar_id = ?",
+            ("juan@gmail.com",),
+        ).fetchone()
+    assert row["enabled"] == 0
+
+
+def test_patch_calendar_enabled_updates_existing_pref(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?,?)",
+            ("juan@gmail.com", 0),
+        )
+    resp = client.patch(
+        "/api/calendars/enabled",
+        json={"id": "juan@gmail.com", "enabled": True},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["enabled"] is True
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT enabled FROM calendar_prefs WHERE calendar_id = ?",
+            ("juan@gmail.com",),
+        ).fetchone()
+    assert row["enabled"] == 1
+
+
+def test_patch_calendar_enabled_handles_id_with_special_chars(client):
+    cal_id = "en.australian#holiday@group.v.calendar.google.com"
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            (cal_id, "Holidays in Australia", "#0b8043", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+    resp = client.patch(
+        "/api/calendars/enabled",
+        json={"id": cal_id, "enabled": True},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["id"] == cal_id
+    assert resp.json()["enabled"] is True
+
+
+def test_patch_calendar_enabled_returns_404_for_unknown_id(client):
+    resp = client.patch(
+        "/api/calendars/enabled",
+        json={"id": "ghost@gmail.com", "enabled": True},
+    )
+    assert resp.status_code == 404

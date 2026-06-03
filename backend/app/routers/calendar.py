@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from app.deps import get_db
 import app.config as config
 
@@ -69,3 +70,35 @@ def get_events(
         }
         for r in rows
     ]
+
+
+class CalendarToggle(BaseModel):
+    id: str
+    enabled: bool
+
+
+@router.patch("/calendars/enabled")
+def toggle_calendar_enabled(
+    payload: CalendarToggle,
+    db: sqlite3.Connection = Depends(get_db),
+):
+    cal = db.execute(
+        "SELECT id, summary, background_color, foreground_color FROM calendars WHERE id = ?",
+        (payload.id,),
+    ).fetchone()
+    if cal is None:
+        raise HTTPException(status_code=404, detail="Calendar not found")
+
+    db.execute(
+        "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?, ?)"
+        " ON CONFLICT(calendar_id) DO UPDATE SET enabled = excluded.enabled",
+        (payload.id, int(payload.enabled)),
+    )
+
+    return {
+        "id": cal["id"],
+        "summary": cal["summary"],
+        "backgroundColor": cal["background_color"],
+        "foregroundColor": cal["foreground_color"],
+        "enabled": payload.enabled,
+    }
