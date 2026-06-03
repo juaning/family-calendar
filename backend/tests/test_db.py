@@ -43,3 +43,9 @@ def test_init_creates_calendar_prefs_table(tmp_db):
     with get_conn() as conn:
         tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "calendar_prefs" in tables
+
+
+def test_init_creates_chores_table(tmp_db):
+    with get_conn() as conn:
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "chores" in tables
