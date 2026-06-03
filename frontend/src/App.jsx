@@ -6,7 +6,9 @@ export default function App() {
     <div style={{
       display: 'flex',
       height: '100vh',
-      background: '#0f172a',
+      background: 'var(--color-background)',
+      fontFamily: 'var(--font-family)',
+      color: 'var(--color-on-background)',
       overflow: 'hidden',
     }}>
       <div style={{ flex: '0 0 70%', height: '100%', minWidth: 0, overflow: 'hidden' }}>

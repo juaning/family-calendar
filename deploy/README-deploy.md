@@ -42,6 +42,10 @@
    mkdir -p ~/family-calendar/secrets
    ```
    This directory is gitignored. Place `credentials.json` here in Phase 1.
+6. **Copy secrets to py** 
+# From your Mac — copy both files into it:
+scp secrets/credentials.json kitchen-cal.local:~/family-calendar/secrets/
+scp secrets/token.json kitchen-cal.local:~/family-calendar/secrets/
 
 ## Start the app
 
