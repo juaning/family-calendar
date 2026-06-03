@@ -121,3 +121,44 @@ def test_get_calendars_enabled_defaults_true_when_no_pref(client):
     resp = client.get("/api/calendars")
     data = resp.json()
     assert data[0]["enabled"] is True
+
+
+def test_get_events_excludes_disabled_calendar(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?,?)",
+            ("juan@gmail.com", 0),
+        )
+        conn.execute(
+            "INSERT INTO events VALUES (?,?,?,?,?,?,?)",
+            ("evt1", "juan@gmail.com", "Hidden event",
+             "2026-06-15T09:00:00", "2026-06-15T10:00:00", 0, "2026-06-01T00:00:00Z"),
+        )
+    resp = client.get("/api/events?start=2026-06-01T00:00:00Z&end=2026-06-30T23:59:59Z")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_get_events_includes_enabled_calendar(client):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO calendars VALUES (?,?,?,?,?)",
+            ("juan@gmail.com", "Juan", "#039be5", "#ffffff", "2026-06-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO calendar_prefs (calendar_id, enabled) VALUES (?,?)",
+            ("juan@gmail.com", 1),
+        )
+        conn.execute(
+            "INSERT INTO events VALUES (?,?,?,?,?,?,?)",
+            ("evt1", "juan@gmail.com", "Visible event",
+             "2026-06-15T09:00:00", "2026-06-15T10:00:00", 0, "2026-06-01T00:00:00Z"),
+        )
+    resp = client.get("/api/events?start=2026-06-01T00:00:00Z&end=2026-06-30T23:59:59Z")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+    assert resp.json()[0]["title"] == "Visible event"

@@ -48,7 +48,9 @@ def get_events(
                c.background_color, c.foreground_color
         FROM   events e
         JOIN   calendars c ON e.calendar_id = c.id
+        LEFT   JOIN calendar_prefs cp ON e.calendar_id = cp.calendar_id
         WHERE  e.start >= ? AND e.start < ?
+          AND  COALESCE(cp.enabled, 1) = 1
         ORDER  BY e.start
         """,
         (start, end),
