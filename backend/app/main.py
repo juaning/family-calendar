@@ -7,6 +7,7 @@ from app.db import init_db
 from app.services.sync import sync_loop
 from app.routers.calendar import router as calendar_router
 from app.routers.chores import router as chores_router
+from app.routers.config import router as config_router
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(calendar_router)
 app.include_router(chores_router)
+app.include_router(config_router)
 
 
 @app.get("/health")

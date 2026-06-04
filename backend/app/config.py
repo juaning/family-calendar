@@ -12,3 +12,10 @@ GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 DB_PATH = os.getenv("DB_PATH", "app/data/calendar.db")
 CALENDAR_SYNC_INTERVAL = int(os.getenv("CALENDAR_SYNC_INTERVAL_SECONDS", "300"))
+
+ICLOUD_SHARED_ALBUM_URL    = os.getenv("ICLOUD_SHARED_ALBUM_URL", "")
+SLIDESHOW_IDLE_SECONDS     = int(os.getenv("SLIDESHOW_IDLE_SECONDS", "120"))
+SLIDESHOW_INTERVAL_SECONDS = int(os.getenv("SLIDESHOW_INTERVAL_SECONDS", "8"))
+SLIDESHOW_REFRESH_SECONDS  = int(os.getenv("SLIDESHOW_REFRESH_SECONDS", "3600"))
+PHOTO_CACHE_DIR            = os.getenv("PHOTO_CACHE_DIR", "/app/data/photos")
+PHOTO_SOURCE               = os.getenv("PHOTO_SOURCE", "icloud")
