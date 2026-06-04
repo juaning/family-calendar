@@ -80,6 +80,7 @@ export default function ChoresList({ calendars }) {
     setEditingId(chore.id)
     setEditTitle(chore.title)
     setEditAssignee(chore.assignee_calendar_id)
+    setSaveError(null)
   }
 
   async function handleSaveEdit() {
@@ -111,7 +112,7 @@ export default function ChoresList({ calendars }) {
       setEditingId(null)
       refetch()
     } catch {
-      // leave edit card open so user can retry
+      setSaveError('Could not delete — try again')
     } finally {
       setBusy(false)
     }
