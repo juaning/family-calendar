@@ -1,7 +1,7 @@
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from app.deps import get_db
 
@@ -18,6 +18,12 @@ class ChoreCreate(BaseModel):
         if not v.strip():
             raise ValueError("title must not be blank")
         return v.strip()
+
+
+class ChoreUpdate(BaseModel):
+    done: bool | None = None
+    title: str | None = None
+    assignee_calendar_id: str | None = None
 
 
 def _now() -> str:
@@ -60,3 +66,47 @@ def create_chore(payload: ChoreCreate, db: sqlite3.Connection = Depends(get_db))
     )
     row = db.execute("SELECT * FROM chores WHERE id = ?", (chore_id,)).fetchone()
     return _row_to_dict(row)
+
+
+@router.patch("/chores/{chore_id}")
+def update_chore(
+    chore_id: str,
+    payload: ChoreUpdate,
+    db: sqlite3.Connection = Depends(get_db),
+):
+    if not db.execute("SELECT 1 FROM chores WHERE id = ?", (chore_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="Chore not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=422, detail="No fields to update")
+
+    set_clauses = []
+    params = []
+    if "done" in updates:
+        set_clauses.append("done = ?")
+        params.append(int(updates["done"]))
+    if "title" in updates:
+        set_clauses.append("title = ?")
+        params.append(updates["title"])
+    if "assignee_calendar_id" in updates:
+        set_clauses.append("assignee_calendar_id = ?")
+        params.append(updates["assignee_calendar_id"])  # None → SQL NULL
+
+    set_clauses.append("updated_at = ?")
+    params.append(_now())
+    params.append(chore_id)
+
+    db.execute(
+        f"UPDATE chores SET {', '.join(set_clauses)} WHERE id = ?",
+        params,
+    )
+    row = db.execute("SELECT * FROM chores WHERE id = ?", (chore_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+@router.delete("/chores/{chore_id}", status_code=204)
+def delete_chore(chore_id: str, db: sqlite3.Connection = Depends(get_db)):
+    if not db.execute("SELECT 1 FROM chores WHERE id = ?", (chore_id,)).fetchone():
+        raise HTTPException(status_code=404, detail="Chore not found")
+    db.execute("DELETE FROM chores WHERE id = ?", (chore_id,))
