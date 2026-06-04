@@ -20,6 +20,7 @@ export default function ChoresList({ calendars }) {
   const [addAssignee, setAddAssignee] = useState(null)
 
   const [busy, setBusy] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   // ── Helpers ──────────────────────────────────────────────
 
@@ -54,6 +55,7 @@ export default function ChoresList({ calendars }) {
     const title = addTitle.trim()
     if (!title) return
     setBusy(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/chores', {
         method: 'POST',
@@ -65,6 +67,8 @@ export default function ChoresList({ calendars }) {
       setAddAssignee(null)
       setAddingOpen(false)
       refetch()
+    } catch {
+      setSaveError('Could not save — try again')
     } finally {
       setBusy(false)
     }
@@ -82,6 +86,7 @@ export default function ChoresList({ calendars }) {
     const title = editTitle.trim()
     if (!title) return
     setBusy(true)
+    setSaveError(null)
     try {
       const res = await fetch(`/api/chores/${editingId}`, {
         method: 'PATCH',
@@ -91,6 +96,8 @@ export default function ChoresList({ calendars }) {
       if (!res.ok) throw new Error(`${res.status}`)
       setEditingId(null)
       refetch()
+    } catch {
+      setSaveError('Could not save — try again')
     } finally {
       setBusy(false)
     }
@@ -99,9 +106,12 @@ export default function ChoresList({ calendars }) {
   async function handleDelete(choreId) {
     setBusy(true)
     try {
-      await fetch(`/api/chores/${choreId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/chores/${choreId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(`${res.status}`)
       setEditingId(null)
       refetch()
+    } catch {
+      // leave edit card open so user can retry
     } finally {
       setBusy(false)
     }
@@ -130,10 +140,15 @@ export default function ChoresList({ calendars }) {
         {loading && (
           <p style={emptyStyle}>Loading…</p>
         )}
-        {!loading && sorted.length === 0 && (
+        {error && (
+          <p style={{ ...emptyStyle, color: 'var(--color-error)' }}>
+            Could not load chores — check your connection.
+          </p>
+        )}
+        {!loading && !error && sorted.length === 0 && (
           <p style={emptyStyle}>No chores yet — tap + Add to start.</p>
         )}
-        {!loading && sorted.map(chore => (
+        {!loading && !error && sorted.map(chore => (
           editingId === chore.id
             ? (
               <EditCard
@@ -145,8 +160,9 @@ export default function ChoresList({ calendars }) {
                 onAssigneeChange={setEditAssignee}
                 onSave={handleSaveEdit}
                 onDelete={() => handleDelete(chore.id)}
-                onCancel={() => setEditingId(null)}
+                onCancel={() => { setEditingId(null); setSaveError(null) }}
                 busy={busy}
+                saveError={saveError}
               />
             ) : (
               <ChoreCard
@@ -170,8 +186,9 @@ export default function ChoresList({ calendars }) {
             onTitleChange={setAddTitle}
             onAssigneeChange={setAddAssignee}
             onSubmit={handleAdd}
-            onCancel={() => { setAddingOpen(false); setAddTitle(''); setAddAssignee(null) }}
+            onCancel={() => { setAddingOpen(false); setAddTitle(''); setAddAssignee(null); setSaveError(null) }}
             busy={busy}
+            saveError={saveError}
           />
         ) : (
           <button style={addButtonStyle} onClick={() => setAddingOpen(true)}>
@@ -275,6 +292,8 @@ function AssigneePicker({ calendars, selected, onSelect }) {
           justifyContent: 'center',
           fontSize: 14,
           color: 'var(--color-on-surface-variant)',
+          minWidth: 44,
+          minHeight: 44,
         }}
         title="No assignee"
         aria-label="No assignee"
@@ -299,6 +318,8 @@ function AssigneePicker({ calendars, selected, onSelect }) {
             fontSize: 13,
             fontWeight: 700,
             color: cal.foregroundColor,
+            minWidth: 44,
+            minHeight: 44,
           }}
           title={cal.summary}
           aria-label={cal.summary}
@@ -311,7 +332,7 @@ function AssigneePicker({ calendars, selected, onSelect }) {
 }
 
 
-function AddForm({ title, assignee, calendars, onTitleChange, onAssigneeChange, onSubmit, onCancel, busy }) {
+function AddForm({ title, assignee, calendars, onTitleChange, onAssigneeChange, onSubmit, onCancel, busy, saveError }) {
   return (
     <div style={inlineFormStyle}>
       <input
@@ -323,6 +344,11 @@ function AddForm({ title, assignee, calendars, onTitleChange, onAssigneeChange, 
         style={inputStyle}
       />
       <AssigneePicker calendars={calendars} selected={assignee} onSelect={onAssigneeChange} />
+      {saveError && (
+        <p style={{ fontSize: 'var(--text-label-lg-size)', color: 'var(--color-error)', margin: '4px 0' }}>
+          {saveError}
+        </p>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={onSubmit} disabled={busy || !title.trim()} style={primaryBtnStyle}>
           Add
@@ -336,7 +362,7 @@ function AddForm({ title, assignee, calendars, onTitleChange, onAssigneeChange, 
 }
 
 
-function EditCard({ title, assignee, calendars, onTitleChange, onAssigneeChange, onSave, onDelete, onCancel, busy }) {
+function EditCard({ title, assignee, calendars, onTitleChange, onAssigneeChange, onSave, onDelete, onCancel, busy, saveError }) {
   return (
     <div style={{ ...inlineFormStyle, marginBottom: 'var(--space-stack-sm)' }}>
       <input
@@ -347,6 +373,11 @@ function EditCard({ title, assignee, calendars, onTitleChange, onAssigneeChange,
         style={inputStyle}
       />
       <AssigneePicker calendars={calendars} selected={assignee} onSelect={onAssigneeChange} />
+      {saveError && (
+        <p style={{ fontSize: 'var(--text-label-lg-size)', color: 'var(--color-error)', margin: '4px 0' }}>
+          {saveError}
+        </p>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" onClick={onSave} disabled={busy || !title.trim()} style={primaryBtnStyle}>
           Save
