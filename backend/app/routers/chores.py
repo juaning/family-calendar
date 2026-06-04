@@ -1,8 +1,8 @@
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, field_validator
 from app.deps import get_db
 
 router = APIRouter(prefix="/api")
@@ -11,6 +11,13 @@ router = APIRouter(prefix="/api")
 class ChoreCreate(BaseModel):
     title: str
     assignee_calendar_id: str | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("title must not be blank")
+        return v.strip()
 
 
 def _now() -> str:

@@ -56,3 +56,8 @@ def test_list_chores_ordered_by_position_then_created(client):
     chores = client.get("/api/chores").json()
     titles = [c["title"] for c in chores]
     assert titles == ["First", "Second", "Third"]
+
+
+def test_create_chore_blank_title_returns_422(client):
+    resp = client.post("/api/chores", json={"title": "   "})
+    assert resp.status_code == 422
