@@ -42,7 +42,7 @@ ICLOUD_SHARED_ALBUM_URL     = os.getenv("ICLOUD_SHARED_ALBUM_URL", "")
 SLIDESHOW_IDLE_SECONDS      = int(os.getenv("SLIDESHOW_IDLE_SECONDS", "120"))
 SLIDESHOW_INTERVAL_SECONDS  = int(os.getenv("SLIDESHOW_INTERVAL_SECONDS", "8"))
 SLIDESHOW_REFRESH_SECONDS   = int(os.getenv("SLIDESHOW_REFRESH_SECONDS", "3600"))
-PHOTO_CACHE_DIR             = os.getenv("PHOTO_CACHE_DIR", "app/data/photos")
+PHOTO_CACHE_DIR             = os.getenv("PHOTO_CACHE_DIR", "/app/data/photos")
 PHOTO_SOURCE                = os.getenv("PHOTO_SOURCE", "icloud")  # or "syncthing"
 ```
 
@@ -72,7 +72,9 @@ class PhotoSource(ABC):
 
     async def download(self, ref: RemotePhotoRef, dest: Path) -> None:
         """Download ref to dest. Re-resolve any signed URL immediately before
-        streaming bytes. Prefer a JPEG derivative ≤ 1920px wide; skip HEIC."""
+        streaming bytes. Prefer the smallest JPEG derivative ≥ 1920px wide
+        (downscales slightly = crisp); fall back to the largest available if none
+        meet that threshold. Skip HEIC — Chromium will not render it."""
         ...
 ```
 
@@ -84,14 +86,14 @@ Implements the unofficial iCloud Shared Album webstream flow. All iCloud-specifi
 
 **Flow:**
 
-1. Extract the album token from `ICLOUD_SHARED_ALBUM_URL`.
+1. Extract the album token from `ICLOUD_SHARED_ALBUM_URL`. The token lives in the **URL fragment** (after `#`), e.g. `https://www.icloud.com/photos/…#<TOKEN>` — parse with `urlparse(url).fragment`, not the path or query.
 2. `POST https://p06-sharedstreams.icloud.com/{token}/sharedstreams/webstream` with body `{"streamCtag": null}`.
-   - If the response includes `X-Apple-MMe-Host`, retry the POST against the redirected host.
-3. Parse the webstream JSON for photo GUIDs and their `derivatives` dict.
+   - If the response body contains a `"X-Apple-MMe-Host"` key (or the HTTP response carries that header), retry the POST against that host. This redirect is load-bearing: albums live on different partition hosts, so `p06` is frequently wrong. The resolved host must be stored on the instance (`self._stream_host`) and reused for every subsequent `webasseturls` call.
+3. Parse the webstream JSON for photo GUIDs and their `derivatives` dict. **The derivative key names are unofficial and must be verified against real webstream output before relying on them** — do not assume string formats like `"2048x2048"`.
 4. `fetch_remote_refs()` returns one `RemotePhotoRef(id=guid)` per photo.
 5. `download(ref, dest)`:
-   - POST to `https://{host}/{token}/sharedstreams/webasseturls` with `{"photoGuids": [ref.id]}`.
-   - From the response, choose the derivative with the largest JPEG at or below 1920px width (typically the `"2048x2048"` or `"1600x1200"` bucket). If only HEIC is available, log a warning and skip — raise `ValueError("no renderable derivative")`.
+   - POST to `https://{self._stream_host}/{token}/sharedstreams/webasseturls` with `{"photoGuids": [ref.id]}` — signed URLs are resolved fresh here, never stored.
+   - From the response derivatives, select the **smallest JPEG derivative whose width (or long edge) is ≥ 1920px**; if none reach that threshold, fall back to the largest JPEG available. This ensures a slight downscale (crisp) rather than an upscale (fuzzy). If the only derivatives are HEIC, log a warning and raise `ValueError("no renderable derivative")` — Chromium cannot render HEIC.
    - Stream bytes from the signed URL to `dest`.
 6. `is_configured()` returns `bool(ICLOUD_SHARED_ALBUM_URL)`.
 
@@ -177,7 +179,7 @@ Fetches `GET /api/config` once on mount. Returns `{ idleMs, intervalMs }`. While
 **Photo crossfade (when photos.length > 0):**
 - Two `<img>` elements, absolutely positioned, fill the overlay (`object-fit:cover`).
 - `current` img: `opacity:1`; `next` img: `opacity:0`; transition `1s ease`.
-- On each tick (`intervalMs`): set `next.src` to the upcoming photo (preloaded), wait for `onLoad`, then swap opacities. Then advance the index and schedule the next tick.
+- On each tick (`intervalMs`): set `next.src` to the upcoming photo (preloaded), wait for `onLoad` **or `onError`** (whichever fires first), then swap opacities and advance the index. `onError` skips the broken photo and advances without stalling — a 404 (photo pruned between list-fetch and display) skips rather than freezing the slideshow.
 - `setInterval` starts when `isIdle` becomes `true`; clears when `isIdle` is `false` or on unmount.
 
 **Empty state (photos.length === 0):**
@@ -230,7 +232,7 @@ return (
 1. **Phase A — idle UX without photos.** Implement `useIdle`, `useConfig`, `GET /api/config`, and `Slideshow.jsx` with the empty-state (dark background + clock). Verify idle → overlay appears → touch wakes → board visible, no photos needed.
 2. **Phase B — placeholder photos.** Add a `GET /api/photos` stub returning 2–3 local test images. Verify crossfade cycling, preload, and 404-skip in the browser.
 3. **Phase C — backend photo pipeline.** Implement `PhotoSource` ABC, `ICloudSharedAlbumSource`, `PhotoService`, `photos` table, `/api/photos` and `/api/photos/{id}` routes, and the background refresh task. Wire source selection by `PHOTO_SOURCE` config.
-4. **Phase D — integration.** Set `ICLOUD_SHARED_ALBUM_URL` in `.env`, trigger a manual refresh, confirm photos land in `/app/data/photos/`, confirm `/api/photos` lists them, confirm slideshow cycles them.
+4. **Phase D — integration.** Set `ICLOUD_SHARED_ALBUM_URL` in `.env`. First verify `ICloudSharedAlbumSource` standalone: run a small script that calls `fetch_remote_refs()` then `download()` for one photo and inspects the result — so any iCloud failure is unambiguous and not tangled with frontend behaviour. Then trigger a full refresh via the background task or a test endpoint, confirm photos land in `/app/data/photos/`, confirm `/api/photos` lists them, and confirm the slideshow cycles them end-to-end.
 
 ---
 
