@@ -114,3 +114,9 @@ def test_delete_chore(client):
 def test_delete_chore_not_found(client):
     resp = client.delete("/api/chores/no-such-id")
     assert resp.status_code == 404
+
+
+def test_patch_chore_blank_title_returns_422(client):
+    chore_id = client.post("/api/chores", json={"title": "Valid"}).json()["id"]
+    resp = client.patch(f"/api/chores/{chore_id}", json={"title": "   "})
+    assert resp.status_code == 422
