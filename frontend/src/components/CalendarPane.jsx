@@ -3,10 +3,7 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import { useCalendarData } from '../hooks/useCalendarData'
-
-export default function CalendarPane() {
-  const { events, calendars, status, refetch } = useCalendarData()
+export default function CalendarPane({ calendars, events, status, refetch }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [localCalendars, setLocalCalendars] = useState([])
   const [toggleErrors, setToggleErrors] = useState({})
