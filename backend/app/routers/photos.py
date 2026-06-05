@@ -1,32 +1,28 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pathlib import Path
 
-router = APIRouter()
+from app.deps import get_photo_service
+from app.db import get_conn
+from app.services.photo_service import PhotoService
 
-# Phase B stub: serve static placeholder images.
-# Replaced in Task 11 with real PhotoService-backed routes.
-_PLACEHOLDER_DIR = Path(__file__).parent.parent / "static" / "placeholder"
-_PLACEHOLDERS = [
-    {"id": "img1", "url": "/api/photos/img1"},
-    {"id": "img2", "url": "/api/photos/img2"},
-    {"id": "img3", "url": "/api/photos/img3"},
-]
-_PLACEHOLDER_FILES = {
-    "img1": _PLACEHOLDER_DIR / "img1.png",
-    "img2": _PLACEHOLDER_DIR / "img2.png",
-    "img3": _PLACEHOLDER_DIR / "img3.png",
-}
+router = APIRouter()
 
 
 @router.get("/api/photos")
-def list_photos():
-    return _PLACEHOLDERS
+def list_photos(service: PhotoService = Depends(get_photo_service)):
+    return service.list_photos()
 
 
 @router.get("/api/photos/{photo_id}")
 def get_photo(photo_id: str):
-    path = _PLACEHOLDER_FILES.get(photo_id)
-    if path is None or not path.exists():
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT local_path FROM photos WHERE id=?", (photo_id,)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404)
+    path = Path(row["local_path"])
+    if not path.exists():
         raise HTTPException(status_code=404)
     return FileResponse(path)
