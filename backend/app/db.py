@@ -37,6 +37,12 @@ CREATE TABLE IF NOT EXISTS chores (
     created_at           TEXT NOT NULL,
     updated_at           TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS photos (
+    id          TEXT PRIMARY KEY,
+    local_path  TEXT NOT NULL,
+    cached_at   TEXT NOT NULL
+);
 """
 
 
