@@ -54,7 +54,7 @@ def init_db() -> None:
 
 @contextlib.contextmanager
 def get_conn():
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
