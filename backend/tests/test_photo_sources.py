@@ -286,3 +286,13 @@ def test_webstream_raises_after_too_many_redirects():
     with patch("httpx.AsyncClient", return_value=mock_client):
         with pytest.raises(ValueError, match="too many"):
             asyncio.run(src.fetch_remote_refs())
+
+
+from app.services.photo_sources.syncthing_folder import SyncthingFolderSource
+
+def test_syncthing_source_not_configured_by_default():
+    assert SyncthingFolderSource().is_configured() is False
+
+def test_syncthing_fetch_refs_raises():
+    with pytest.raises(NotImplementedError):
+        asyncio.run(SyncthingFolderSource().fetch_remote_refs())
