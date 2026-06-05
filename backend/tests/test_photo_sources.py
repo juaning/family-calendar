@@ -179,28 +179,37 @@ def test_redirect_via_response_header():
 
 
 def test_download_writes_file_on_success(tmp_path):
-    """download() writes photo bytes to dest when webasseturls returns valid data."""
+    """download() writes photo bytes to dest using real webasseturls response shape.
+
+    Real response: items keyed by derivative checksum, each with url_location +
+    url_path; locations maps host → scheme. URL = scheme://url_location + url_path.
+    """
     src = ICloudSharedAlbumSource(ALBUM_URL)
     src._stream_host = "p06-sharedstreams.icloud.com"
-
-    webasseturls_resp = {
-        "items": {
-            "guid-aaa": {
-                "derivatives": {
-                    "2048": {"width": 2048, "mediaAssetType": "JPEG", "url": "https://cdn.example.com/photo.jpg"},
-                }
-            }
-        }
+    # Pre-populate derivative info as fetch_remote_refs() would have done
+    src._photo_derivatives["guid-aaa"] = {
+        "checksum-2048": {"width": 2048, "mediaAssetType": "JPEG"},
     }
 
-    # Mock httpx.AsyncClient for both webasseturls POST and streaming GET
+    webasseturls_resp = {
+        "locations": {
+            "cvws.icloud-content.com": {"scheme": "https", "hosts": ["cvws.icloud-content.com"]},
+        },
+        "items": {
+            "checksum-2048": {
+                "url_expiry": "2026-06-05T12:00:00Z",
+                "url_location": "cvws.icloud-content.com",
+                "url_path": "/S/photo.jpg?sig=abc",
+            },
+        },
+    }
+
     post_resp = MagicMock()
     post_resp.raise_for_status = MagicMock()
     post_resp.json.return_value = webasseturls_resp
 
     stream_resp = AsyncMock()
     stream_resp.raise_for_status = MagicMock()
-    # aiter_bytes yields chunks
     async def fake_aiter_bytes(chunk_size=65536):
         yield b"fake-jpeg-bytes"
     stream_resp.aiter_bytes = fake_aiter_bytes
@@ -221,13 +230,14 @@ def test_download_writes_file_on_success(tmp_path):
     assert dest.read_bytes() == b"fake-jpeg-bytes"
 
 
-def test_download_raises_when_no_data_for_guid(tmp_path):
-    """download() raises ValueError when webasseturls returns no data for the GUID."""
+def test_download_raises_when_no_items_returned(tmp_path):
+    """download() raises ValueError when webasseturls returns an empty items dict."""
     src = ICloudSharedAlbumSource(ALBUM_URL)
+    # No derivative info → no preferred key → must have at least one item
 
     post_resp = MagicMock()
     post_resp.raise_for_status = MagicMock()
-    post_resp.json.return_value = {"items": {}}  # no data for guid
+    post_resp.json.return_value = {"items": {}, "locations": {}}
 
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -235,34 +245,21 @@ def test_download_raises_when_no_data_for_guid(tmp_path):
     mock_client.post = AsyncMock(return_value=post_resp)
 
     with patch("httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(ValueError, match="no data for"):
+        with pytest.raises(ValueError, match="no items"):
             asyncio.run(src.download(RemotePhotoRef(id="missing-guid"), tmp_path / "x.jpg"))
 
 
 def test_download_raises_when_no_renderable_derivative(tmp_path):
-    """download() raises ValueError when only HEIC derivatives exist."""
+    """download() raises ValueError before calling webasseturls when only HEIC derivatives exist."""
     src = ICloudSharedAlbumSource(ALBUM_URL)
-
-    post_resp = MagicMock()
-    post_resp.raise_for_status = MagicMock()
-    post_resp.json.return_value = {
-        "items": {
-            "heic-guid": {
-                "derivatives": {
-                    "orig": {"width": 4032, "mediaAssetType": "HEIC", "url": "https://cdn.example.com/orig.heic"},
-                }
-            }
-        }
+    # Pre-populate with HEIC-only derivatives (as fetch_remote_refs would have stored)
+    src._photo_derivatives["heic-guid"] = {
+        "orig": {"width": 4032, "mediaAssetType": "HEIC"},
     }
 
-    mock_client = AsyncMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = AsyncMock(return_value=post_resp)
-
-    with patch("httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(ValueError, match="no renderable"):
-            asyncio.run(src.download(RemotePhotoRef(id="heic-guid"), tmp_path / "x.jpg"))
+    # download() should raise before ever calling webasseturls
+    with pytest.raises(ValueError, match="no renderable"):
+        asyncio.run(src.download(RemotePhotoRef(id="heic-guid"), tmp_path / "x.jpg"))
 
 
 def test_webstream_raises_after_too_many_redirects():
