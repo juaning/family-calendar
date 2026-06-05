@@ -25,19 +25,23 @@ function PhotoCrossfade({ photos, intervalMs }) {
     const nextIdx = (current + 1) % photos.length
     setNext(nextIdx)
     setShowNext(false)
-
-    // give React a tick to apply the new src before triggering the swap
-    requestAnimationFrame(() => setShowNext(false))
   }, [current, photos.length])
 
-  function onSettled() {
+  const onSettled = useCallback(() => {
     // called by onLoad or onError on the next img — swap and schedule
     setShowNext(true)
     tickRef.current = setTimeout(() => {
       setCurrent(c => (c + 1) % photos.length)
       setShowNext(false)
     }, intervalMs)
-  }
+  }, [intervalMs, photos.length])
+
+  useEffect(() => {
+    if (photos.length > 0) {
+      setCurrent(c => c % photos.length)
+      setNext(n => (n % photos.length) || 0)
+    }
+  }, [photos.length])
 
   useEffect(() => {
     if (photos.length < 2) return
@@ -59,13 +63,13 @@ function PhotoCrossfade({ photos, intervalMs }) {
     <>
       <img
         src={photos[current]?.url}
-        alt=""
+        alt={`Photo ${current + 1} of ${photos.length}`}
         style={{ ...imgStyle, opacity: showNext ? 0 : 1, transition: `opacity var(--slideshow-photo-crossfade) ease`, zIndex: 0 }}
       />
       <img
-        key={photos[next]?.url}
+        key={photos[next]?.id ?? photos[next]?.url}  /* force remount to reset load state */
         src={photos[next]?.url}
-        alt=""
+        alt={`Photo ${(next % photos.length) + 1} of ${photos.length}`}
         style={{ ...imgStyle, opacity: showNext ? 1 : 0, transition: `opacity var(--slideshow-photo-crossfade) ease`, zIndex: 0 }}
         onLoad={onSettled}
         onError={onSettled}
