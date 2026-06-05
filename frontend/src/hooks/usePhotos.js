@@ -1,3 +1,22 @@
+import { useState, useEffect } from 'react'
+
+const REFRESH_MS = 5 * 60 * 1000  // 5 minutes — independent of photo advance interval
+
 export function usePhotos() {
-  return { photos: [] }
+  const [photos, setPhotos] = useState([])
+
+  function load() {
+    fetch('/api/photos')
+      .then(r => r.json())
+      .then(data => setPhotos(Array.isArray(data) ? data : []))
+      .catch(() => setPhotos([]))
+  }
+
+  useEffect(() => {
+    load()
+    const id = setInterval(load, REFRESH_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  return { photos }
 }

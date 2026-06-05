@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 function useClock() {
   const [now, setNow] = useState(new Date())
@@ -13,6 +13,65 @@ function fmt(date) {
   const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   const day  = date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
   return { time, day }
+}
+
+function PhotoCrossfade({ photos, intervalMs }) {
+  const [current, setCurrent] = useState(0)
+  const [next, setNext]       = useState(1 % photos.length)
+  const [showNext, setShowNext] = useState(false)
+  const tickRef = useRef(null)
+
+  const advance = useCallback(() => {
+    const nextIdx = (current + 1) % photos.length
+    setNext(nextIdx)
+    setShowNext(false)
+
+    // give React a tick to apply the new src before triggering the swap
+    requestAnimationFrame(() => setShowNext(false))
+  }, [current, photos.length])
+
+  function onSettled() {
+    // called by onLoad or onError on the next img — swap and schedule
+    setShowNext(true)
+    tickRef.current = setTimeout(() => {
+      setCurrent(c => (c + 1) % photos.length)
+      setShowNext(false)
+    }, intervalMs)
+  }
+
+  useEffect(() => {
+    if (photos.length < 2) return
+    tickRef.current = setTimeout(advance, intervalMs)
+    return () => clearTimeout(tickRef.current)
+  }, [current, photos.length, intervalMs, advance])
+
+  useEffect(() => () => clearTimeout(tickRef.current), [])
+
+  if (photos.length === 0) return null
+
+  const imgStyle = {
+    position: 'absolute', inset: 0,
+    width: '100%', height: '100%',
+    objectFit: 'cover',
+  }
+
+  return (
+    <>
+      <img
+        src={photos[current]?.url}
+        alt=""
+        style={{ ...imgStyle, opacity: showNext ? 0 : 1, transition: `opacity var(--slideshow-photo-crossfade) ease`, zIndex: 0 }}
+      />
+      <img
+        key={photos[next]?.url}
+        src={photos[next]?.url}
+        alt=""
+        style={{ ...imgStyle, opacity: showNext ? 1 : 0, transition: `opacity var(--slideshow-photo-crossfade) ease`, zIndex: 0 }}
+        onLoad={onSettled}
+        onError={onSettled}
+      />
+    </>
+  )
 }
 
 export default function Slideshow({ isIdle, onWake, photos = [], intervalMs = 8_000 }) {
@@ -35,13 +94,12 @@ export default function Slideshow({ isIdle, onWake, photos = [], intervalMs = 8_
         overflow: 'hidden',
       }}
     >
-      {/* flat scrim when photos are present */}
+      {/* photo layer */}
+      {hasPhotos && <PhotoCrossfade photos={photos} intervalMs={intervalMs} />}
+
+      {/* flat scrim */}
       {hasPhotos && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'var(--slideshow-overlay-bg)',
-          zIndex: 1,
-        }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'var(--slideshow-overlay-bg)', zIndex: 1 }} />
       )}
 
       {/* clock + date */}
@@ -51,7 +109,6 @@ export default function Slideshow({ isIdle, onWake, photos = [], intervalMs = 8_
         alignItems: 'center', justifyContent: 'center',
         pointerEvents: 'none',
       }}>
-        {/* gradient behind clock for legibility over any photo */}
         <div style={{
           padding: '40px 60px',
           background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.35) 60%, transparent)',
@@ -77,7 +134,7 @@ export default function Slideshow({ isIdle, onWake, photos = [], intervalMs = 8_
         </div>
       </div>
 
-      {/* bottom gradient + wake hint */}
+      {/* bottom gradient + hint */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         height: '20%',
