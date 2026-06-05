@@ -39,7 +39,7 @@ from app.services.photo_sources.icloud_shared_album import ICloudSharedAlbumSour
 
 ALBUM_URL = "https://www.icloud.com/photos/fake#MYTOKEN"
 
-def _make_http_mock(webstream_body, webasseturls_body=None):
+def _make_http_mock(webstream_body):
     """Return a context-manager mock for httpx.AsyncClient."""
     resp_ws = MagicMock()
     resp_ws.raise_for_status = MagicMock()
@@ -149,3 +149,140 @@ def test_select_derivative_returns_none_if_only_heic():
         "A": {"width": 4032, "mediaAssetType": "HEIC", "url": "http://example.com/orig.heic"},
     }
     assert src._select_derivative(derivatives) is None
+
+
+def test_redirect_via_response_header():
+    """If X-Apple-MMe-Host is in HTTP headers (not body), it should be followed."""
+    call_count = {"n": 0}
+
+    async def fake_post(url, **kwargs):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        if call_count["n"] == 0:
+            resp.json.return_value = {}  # no host in body
+            resp.headers = {"X-Apple-MMe-Host": "p99-sharedstreams.icloud.com"}
+        else:
+            resp.json.return_value = {"photos": [{"photoGuid": "g2", "derivatives": {}}]}
+            resp.headers = {}
+        call_count["n"] += 1
+        return resp
+
+    src = ICloudSharedAlbumSource(ALBUM_URL)
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = fake_post
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        refs = asyncio.run(src.fetch_remote_refs())
+    assert src._stream_host == "p99-sharedstreams.icloud.com"
+    assert [r.id for r in refs] == ["g2"]
+
+
+def test_download_writes_file_on_success(tmp_path):
+    """download() writes photo bytes to dest when webasseturls returns valid data."""
+    src = ICloudSharedAlbumSource(ALBUM_URL)
+    src._stream_host = "p06-sharedstreams.icloud.com"
+
+    webasseturls_resp = {
+        "items": {
+            "guid-aaa": {
+                "derivatives": {
+                    "2048": {"width": 2048, "mediaAssetType": "JPEG", "url": "https://cdn.example.com/photo.jpg"},
+                }
+            }
+        }
+    }
+
+    # Mock httpx.AsyncClient for both webasseturls POST and streaming GET
+    post_resp = MagicMock()
+    post_resp.raise_for_status = MagicMock()
+    post_resp.json.return_value = webasseturls_resp
+
+    stream_resp = AsyncMock()
+    stream_resp.raise_for_status = MagicMock()
+    # aiter_bytes yields chunks
+    async def fake_aiter_bytes(chunk_size=65536):
+        yield b"fake-jpeg-bytes"
+    stream_resp.aiter_bytes = fake_aiter_bytes
+    stream_resp.__aenter__ = AsyncMock(return_value=stream_resp)
+    stream_resp.__aexit__ = AsyncMock(return_value=False)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=post_resp)
+    mock_client.stream = MagicMock(return_value=stream_resp)
+
+    dest = tmp_path / "photo.jpg"
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        asyncio.run(src.download(RemotePhotoRef(id="guid-aaa"), dest))
+
+    assert dest.exists()
+    assert dest.read_bytes() == b"fake-jpeg-bytes"
+
+
+def test_download_raises_when_no_data_for_guid(tmp_path):
+    """download() raises ValueError when webasseturls returns no data for the GUID."""
+    src = ICloudSharedAlbumSource(ALBUM_URL)
+
+    post_resp = MagicMock()
+    post_resp.raise_for_status = MagicMock()
+    post_resp.json.return_value = {"items": {}}  # no data for guid
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=post_resp)
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        with pytest.raises(ValueError, match="no data for"):
+            asyncio.run(src.download(RemotePhotoRef(id="missing-guid"), tmp_path / "x.jpg"))
+
+
+def test_download_raises_when_no_renderable_derivative(tmp_path):
+    """download() raises ValueError when only HEIC derivatives exist."""
+    src = ICloudSharedAlbumSource(ALBUM_URL)
+
+    post_resp = MagicMock()
+    post_resp.raise_for_status = MagicMock()
+    post_resp.json.return_value = {
+        "items": {
+            "heic-guid": {
+                "derivatives": {
+                    "orig": {"width": 4032, "mediaAssetType": "HEIC", "url": "https://cdn.example.com/orig.heic"},
+                }
+            }
+        }
+    }
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=post_resp)
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        with pytest.raises(ValueError, match="no renderable"):
+            asyncio.run(src.download(RemotePhotoRef(id="heic-guid"), tmp_path / "x.jpg"))
+
+
+def test_webstream_raises_after_too_many_redirects():
+    """_webstream() raises ValueError after more than 3 host redirects."""
+    src = ICloudSharedAlbumSource(ALBUM_URL)
+    call_count = {"n": 0}
+
+    async def always_redirect(url, **kwargs):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        resp.headers = {}
+        resp.json.return_value = {"X-Apple-MMe-Host": f"p{call_count['n']:02d}-sharedstreams.icloud.com"}
+        call_count["n"] += 1
+        return resp
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = always_redirect
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        with pytest.raises(ValueError, match="too many"):
+            asyncio.run(src.fetch_remote_refs())

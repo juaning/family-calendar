@@ -19,7 +19,9 @@ class ICloudSharedAlbumSource(PhotoSource):
     def is_configured(self) -> bool:
         return bool(self._album_url)
 
-    async def _webstream(self) -> dict:
+    async def _webstream(self, _depth: int = 0) -> dict:
+        if _depth > 3:
+            raise ValueError("too many iCloud host redirects")
         url = f"https://{self._stream_host}/{self._token}/sharedstreams/webstream"
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, json={"streamCtag": None})
@@ -29,8 +31,9 @@ class ICloudSharedAlbumSource(PhotoSource):
         # Follow partition redirect if present in the response body or headers
         new_host = data.get("X-Apple-MMe-Host") or resp.headers.get("X-Apple-MMe-Host")
         if new_host and new_host != self._stream_host:
+            logger.debug("iCloud host redirect: %s → %s", self._stream_host, new_host)
             self._stream_host = new_host
-            return await self._webstream()
+            return await self._webstream(_depth + 1)
 
         return data
 
@@ -89,6 +92,8 @@ class ICloudSharedAlbumSource(PhotoSource):
         signed_url = chosen.get("url")
         if not signed_url:
             raise ValueError(f"chosen derivative has no url for {ref.id}")
+        if not signed_url.startswith("https://"):
+            raise ValueError(f"signed URL has unexpected scheme for {ref.id}: {signed_url[:30]}")
 
         dest.parent.mkdir(parents=True, exist_ok=True)
         async with httpx.AsyncClient(follow_redirects=True) as client:
