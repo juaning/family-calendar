@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.services.sync import sync_loop
+from app.services.photo_service import make_photo_service, photo_refresh_loop
 from app.routers.calendar import router as calendar_router
 from app.routers.chores import router as chores_router
 from app.routers.config import router as config_router
@@ -14,13 +15,18 @@ from app.routers.photos import router as photos_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    photo_service = make_photo_service()
+    app.state.photo_service = photo_service
     if not os.getenv("TESTING"):
-        task = asyncio.create_task(sync_loop())
+        sync_task  = asyncio.create_task(sync_loop())
+        photo_task = asyncio.create_task(photo_refresh_loop(photo_service))
     else:
-        task = None
+        sync_task = photo_task = None
     yield
-    if task:
-        task.cancel()
+    if sync_task:
+        sync_task.cancel()
+    if photo_task:
+        photo_task.cancel()
 
 
 app = FastAPI(title="Family Calendar API", lifespan=lifespan)
