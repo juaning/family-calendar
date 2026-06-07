@@ -95,7 +95,7 @@ export default function CalendarPane({ calendars, events, status, refetch }) {
         ⚙
       </button>
 
-      {/* Transparent backdrop — closes panel on outside tap */}
+      {/* Backdrop — semi-transparent with blur, closes panel on tap */}
       {panelOpen && (
         <div
           onClick={() => setPanelOpen(false)}
@@ -103,80 +103,94 @@ export default function CalendarPane({ calendars, events, status, refetch }) {
         />
       )}
 
-      {/* Settings panel */}
+      {/* Settings panel — full-height right drawer */}
       {panelOpen && (
         <div style={panelStyle}>
+          {/* Header */}
           <div style={panelHeaderStyle}>
-            <span style={{
-              fontWeight: 'var(--text-headline-md-weight)',
-              fontSize: 'var(--text-headline-md-size)',
-              color: 'var(--color-on-surface)',
-            }}>
-              Calendars
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-on-surface)' }}>
+              Calendar Settings
             </span>
             <button onClick={() => setPanelOpen(false)} style={closeButtonStyle} aria-label="Close">✕</button>
           </div>
+
+          {/* Body */}
           <div style={panelBodyStyle}>
-            {localCalendars.map(cal => (
-              <div key={cal.id} style={calRowStyle}>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 'var(--radius-full)',
-                    background: cal.backgroundColor,
-                    opacity: cal.enabled ? 1 : 0.3,
-                    flexShrink: 0,
-                    display: 'inline-block',
-                  }}
-                />
-                <span style={{
-                  flex: 1,
-                  color: cal.enabled ? 'var(--color-on-surface)' : 'var(--color-on-surface-variant)',
-                  fontSize: 'var(--text-body-xl-size)',
-                  transition: 'color 0.15s',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {cal.summary}
-                </span>
-                {toggleErrors[cal.id] && (
-                  <span style={{ fontSize: 'var(--text-label-lg-size)', color: 'var(--color-error)', marginRight: 8 }}>
-                    {toggleErrors[cal.id]}
-                  </span>
-                )}
-                {/* Styled toggle switch — touch-min tap area */}
-                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '10px 0', flexShrink: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={cal.enabled}
-                    onChange={e => handleToggle(cal.id, e.target.checked)}
-                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                  />
-                  <div style={{
-                    width: 48,
-                    height: 26,
-                    borderRadius: 13,
-                    background: cal.enabled ? 'var(--color-primary)' : 'var(--color-outline)',
-                    position: 'relative',
-                    transition: 'background 0.2s',
-                    flexShrink: 0,
-                  }}>
-                    <div style={{
-                      width: 22,
-                      height: 22,
+            <div style={sectionLabelStyle}>Family Members Visibility</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {localCalendars.map(cal => (
+                <div key={cal.id} style={calRowStyle}>
+                  <span
+                    style={{
+                      width: 24,
+                      height: 24,
                       borderRadius: 'var(--radius-full)',
-                      background: 'var(--color-surface-container-lowest)',
-                      position: 'absolute',
-                      top: 2,
-                      transform: cal.enabled ? 'translateX(24px)' : 'translateX(2px)',
-                      transition: 'transform 0.2s',
-                    }} />
-                  </div>
-                </label>
-              </div>
-            ))}
+                      background: cal.backgroundColor,
+                      opacity: cal.enabled ? 1 : 0.35,
+                      flexShrink: 0,
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span style={{
+                    flex: 1,
+                    color: cal.enabled ? 'var(--color-on-surface)' : 'var(--color-on-surface-variant)',
+                    fontSize: 16,
+                    fontWeight: 400,
+                    transition: 'color 0.15s',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {cal.summary}
+                  </span>
+                  {toggleErrors[cal.id] && (
+                    <span style={{ fontSize: 11, color: 'var(--color-error)', marginRight: 8 }}>
+                      {toggleErrors[cal.id]}
+                    </span>
+                  )}
+                  {/* Styled toggle switch */}
+                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={cal.enabled}
+                      onChange={e => handleToggle(cal.id, e.target.checked)}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                    />
+                    <div style={{
+                      width: 56,
+                      height: 28,
+                      borderRadius: 14,
+                      background: cal.enabled ? 'var(--color-primary)' : 'var(--color-surface-container-high)',
+                      position: 'relative',
+                      transition: 'background 0.2s',
+                      flexShrink: 0,
+                    }}>
+                      <div style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 'var(--radius-full)',
+                        background: '#ffffff',
+                        border: '2px solid var(--color-outline-variant)',
+                        position: 'absolute',
+                        top: 3,
+                        transform: cal.enabled ? 'translateX(31px)' : 'translateX(3px)',
+                        transition: 'transform 0.2s',
+                      }} />
+                    </div>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={panelFooterStyle}>
+            <button onClick={() => setPanelOpen(false)} style={footerPrimaryBtnStyle}>
+              Save Changes
+            </button>
+            <button onClick={() => setPanelOpen(false)} style={footerGhostBtnStyle}>
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -233,22 +247,22 @@ const backdropStyle = {
   position: 'fixed',
   inset: 0,
   zIndex: 25,
-  background: 'transparent',
+  background: 'rgba(48,48,48,0.25)',
+  backdropFilter: 'blur(2px)',
 }
 
 const panelStyle = {
-  position: 'absolute',
-  top: 60,
-  right: 16,
+  position: 'fixed',
+  top: 0,
+  right: 0,
   zIndex: 30,
-  background: 'var(--color-surface-container-high)',
-  border: '1px solid var(--color-outline-variant)',
-  borderRadius: 'var(--radius-lg)',
-  width: 280,
-  maxHeight: '60vh',
+  background: 'var(--color-surface)',
+  borderLeft: '4px solid var(--color-outline-variant)',
+  width: 320,
+  height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  boxShadow: '0 4px 16px rgba(27,28,27,0.12)',
+  boxShadow: '-8px 0 40px rgba(27,28,27,0.18)',
   fontFamily: 'var(--font-family)',
 }
 
@@ -256,33 +270,88 @@ const panelHeaderStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  padding: 'var(--space-stack-sm) var(--space-stack-md)',
-  borderBottom: '1px solid var(--color-outline-variant)',
+  padding: '20px 24px',
+  background: 'var(--color-surface)',
+  borderBottom: '1px solid var(--color-surface-container-high)',
   flexShrink: 0,
 }
 
 const closeButtonStyle = {
   background: 'transparent',
   border: 'none',
-  color: 'var(--color-on-surface-variant)',
+  color: 'var(--color-on-surface)',
   fontSize: '1.1rem',
   cursor: 'pointer',
-  padding: '4px 8px',
-  borderRadius: 'var(--radius-sm)',
-  lineHeight: 1,
+  width: 44,
+  height: 44,
+  borderRadius: 'var(--radius-full)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
 }
 
 const panelBodyStyle = {
+  flex: 1,
   overflowY: 'auto',
-  padding: 'var(--space-unit) 0',
+  padding: '16px 24px',
+}
+
+const sectionLabelStyle = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--color-on-surface-variant)',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  marginBottom: 12,
 }
 
 const calRowStyle = {
   display: 'flex',
   alignItems: 'center',
-  padding: '0 var(--space-stack-md)',
-  gap: 'var(--space-stack-sm)',
+  padding: '12px 16px',
+  gap: 12,
+  minHeight: 64,
+  background: 'var(--color-surface-container-lowest)',
+  borderRadius: 'var(--radius-card)',
+  border: '2px solid var(--color-surface-container)',
+}
+
+const panelFooterStyle = {
+  padding: '16px 24px',
+  borderTop: '2px solid var(--color-surface-container-high)',
+  background: 'var(--color-surface)',
+  display: 'flex',
+  gap: 12,
+  flexShrink: 0,
+}
+
+const footerPrimaryBtnStyle = {
+  flex: 1,
+  padding: '14px',
   minHeight: 52,
+  background: 'var(--color-primary-container)',
+  color: 'var(--color-on-primary-container)',
+  border: '3px solid var(--color-primary-container)',
+  borderRadius: 'var(--radius-xl)',
+  fontSize: 16,
+  fontWeight: 700,
+  fontFamily: 'var(--font-family)',
+  cursor: 'pointer',
+}
+
+const footerGhostBtnStyle = {
+  flex: 1,
+  padding: '14px',
+  minHeight: 52,
+  background: 'transparent',
+  color: 'var(--color-on-surface)',
+  border: '3px solid var(--color-outline)',
+  borderRadius: 'var(--radius-xl)',
+  fontSize: 16,
+  fontWeight: 700,
+  fontFamily: 'var(--font-family)',
+  cursor: 'pointer',
 }
 
 const calendarCss = `
@@ -340,9 +409,9 @@ const calendarCss = `
   .fc .fc-daygrid-day-number:hover { color: var(--color-on-surface); }
   .fc .fc-event {
     font-size: 13px;
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     border: none;
-    padding: 2px 6px;
+    padding: 3px 8px;
     font-weight: 600;
   }
   .fc .fc-col-header-cell {

@@ -64,10 +64,13 @@ class PhotoService:
         for photo_id, local_path in cached.items():
             if photo_id in remote_ids:
                 continue
-            Path(local_path).unlink(missing_ok=True)  # file first
-            with get_conn() as conn:
-                conn.execute("DELETE FROM photos WHERE id=?", (photo_id,))
-            logger.info("pruned photo %s", photo_id)
+            try:
+                Path(local_path).unlink(missing_ok=True)  # file first
+                with get_conn() as conn:
+                    conn.execute("DELETE FROM photos WHERE id=?", (photo_id,))
+                logger.info("pruned photo %s", photo_id)
+            except Exception:
+                logger.exception("failed to prune photo %s", photo_id)
 
 
 def _make_source(source_name: str, album_url: str) -> PhotoSource:

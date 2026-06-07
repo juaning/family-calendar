@@ -120,8 +120,8 @@ export default function ChoresList({ calendars }) {
 
       {/* Header */}
       <div style={headerStyle}>
-        <span style={{ fontSize: 22, lineHeight: 1 }}>☑</span>
         <span style={headerTitleStyle}>Family Chores</span>
+        <span style={{ fontSize: 28, lineHeight: 1, color: 'var(--color-primary)' }}>☑</span>
       </div>
 
       {/* FIX 2: "+ Add chore" lives at the top, below the header */}
@@ -211,24 +211,24 @@ function ChoreCard({ chore, calendar, onToggle, onEdit }) {
       {/* Title + person name */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: 600,
           color: chore.done ? 'var(--color-on-surface-variant)' : 'var(--color-on-surface)',
           textDecoration: chore.done ? 'line-through' : 'none',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          lineHeight: '20px',
+          lineHeight: '22px',
         }}>
           {chore.title}
         </div>
         {calendar && (
           <div style={{
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 400,
             color: 'var(--color-on-surface-variant)',
             marginTop: 2,
-            lineHeight: '16px',
+            lineHeight: '17px',
           }}>
             {calendar.summary}
           </div>
@@ -249,11 +249,11 @@ function ChoreCard({ chore, calendar, onToggle, onEdit }) {
           }
         }}
         style={{
-          width: 22,
-          height: 22,
-          borderRadius: 'var(--radius-md)',
-          border: chore.done ? 'none' : '2px solid var(--color-outline)',
-          background: chore.done ? 'var(--color-tertiary)' : 'transparent',
+          width: 36,
+          height: 36,
+          borderRadius: 8,
+          border: chore.done ? 'none' : '3px solid var(--color-tertiary-container)',
+          background: chore.done ? 'var(--color-tertiary-container)' : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -261,8 +261,8 @@ function ChoreCard({ chore, calendar, onToggle, onEdit }) {
           cursor: 'pointer',
           minWidth: 44,
           minHeight: 44,
-          color: 'var(--color-on-tertiary)',
-          fontSize: 14,
+          color: '#ffffff',
+          fontSize: 18,
           fontWeight: 700,
           transition: 'background 0.15s',
         }}
@@ -400,7 +400,7 @@ const containerStyle = {
   display: 'flex',
   flexDirection: 'column',
   background: 'var(--color-surface-container-low)',
-  borderLeft: '1px solid var(--color-outline-variant)',
+  borderLeft: '2px solid var(--color-outline-variant)',
   fontFamily: 'var(--font-family)',
   overflow: 'hidden',
 }
@@ -408,24 +408,22 @@ const containerStyle = {
 const headerStyle = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
-  padding: '20px var(--space-gutter)',
-  borderBottom: '1px solid var(--color-outline-variant)',
+  justifyContent: 'space-between',
+  padding: '20px 24px',
   background: 'var(--color-surface-container-low)',
   flexShrink: 0,
 }
 
 const headerTitleStyle = {
-  fontSize: 'var(--text-headline-lg-size)',
-  fontWeight: 'var(--text-headline-lg-weight)',
+  fontSize: 20,
+  fontWeight: 700,
   color: 'var(--color-on-surface)',
-  lineHeight: 'var(--text-headline-lg-line-height)',
+  lineHeight: '26px',
 }
 
-// FIX 2: top bar replaces footer
+// "+ Add chore" lives at the top, below the header
 const topBarStyle = {
-  padding: '12px var(--space-gutter)',
-  borderBottom: '1px solid var(--color-outline-variant)',
+  padding: '0 20px 14px',
   background: 'var(--color-surface-container-low)',
   flexShrink: 0,
 }
@@ -433,7 +431,7 @@ const topBarStyle = {
 const listStyle = {
   flex: 1,
   overflowY: 'auto',
-  padding: '12px var(--space-gutter)',
+  padding: '4px 20px 20px',
 }
 
 const emptyStyle = {
@@ -443,31 +441,29 @@ const emptyStyle = {
   marginTop: 'var(--space-stack-lg)',
 }
 
-// FIX 3: white card with elevation — matches Stitch card surface
 const cardStyle = {
   display: 'flex',
   alignItems: 'center',
-  gap: 12,
-  padding: '12px 16px',
-  marginBottom: 10,
-  borderRadius: 'var(--radius-xl)',
+  gap: 16,
+  padding: '16px 20px',
+  marginBottom: 16,
+  borderRadius: 'var(--radius-card)',
   background: 'var(--color-surface-container-lowest)',
-  border: '1px solid var(--color-outline-variant)',
-  boxShadow: '0 1px 3px rgba(27,28,27,0.07)',
+  border: '2px solid var(--color-surface-container-highest)',
   cursor: 'pointer',
   minHeight: 'var(--space-touch-min)',
-  transition: 'box-shadow 0.1s',
+  transition: 'background 0.1s',
   outline: 'none',
 }
 
 const avatarBase = {
-  width: 40,
-  height: 40,
+  width: 44,
+  height: 44,
   borderRadius: 'var(--radius-full)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: 17,
+  fontSize: 16,
   fontWeight: 700,
   flexShrink: 0,
   userSelect: 'none',
@@ -475,73 +471,74 @@ const avatarBase = {
 
 const addButtonStyle = {
   width: '100%',
-  padding: '10px 0',
+  padding: '12px 0',
   minHeight: 'var(--space-touch-min)',
   background: 'var(--color-primary)',
   border: 'none',
-  borderRadius: 'var(--radius-md)',
+  borderRadius: 'var(--radius-xl)',
   color: 'var(--color-on-primary)',
-  fontSize: 'var(--text-body-xl-size)',
-  fontWeight: 600,
+  fontSize: 16,
+  fontWeight: 700,
   fontFamily: 'var(--font-family)',
   cursor: 'pointer',
+  letterSpacing: '0.01em',
 }
 
 const inlineFormStyle = {
   background: 'var(--color-surface-container-lowest)',
-  borderRadius: 'var(--radius-xl)',
-  border: '1px solid var(--color-outline-variant)',
-  padding: '12px 16px',
+  borderRadius: 'var(--radius-card)',
+  border: '2px solid var(--color-surface-container-highest)',
+  padding: '14px 16px',
 }
 
 const inputStyle = {
   width: '100%',
   padding: '10px 12px',
-  borderRadius: 'var(--radius-md)',
-  border: '1px solid var(--color-outline-variant)',
+  borderRadius: 'var(--radius-lg)',
+  border: '2px solid var(--color-outline-variant)',
   background: 'var(--color-surface-container-low)',
   color: 'var(--color-on-surface)',
-  fontSize: 'var(--text-body-xl-size)',
+  fontSize: 15,
   fontFamily: 'var(--font-family)',
   boxSizing: 'border-box',
-  marginBottom: 8,
+  marginBottom: 10,
   outline: 'none',
 }
 
 const primaryBtnStyle = {
   flex: 1,
-  padding: '10px 0',
+  padding: '11px 0',
   minHeight: 44,
   background: 'var(--color-primary)',
   color: 'var(--color-on-primary)',
   border: 'none',
-  borderRadius: 'var(--radius-md)',
-  fontSize: 'var(--text-body-xl-size)',
-  fontWeight: 600,
+  borderRadius: 'var(--radius-lg)',
+  fontSize: 15,
+  fontWeight: 700,
   fontFamily: 'var(--font-family)',
   cursor: 'pointer',
 }
 
 const deleteBtnStyle = {
-  padding: '10px 14px',
+  padding: '11px 14px',
   minHeight: 44,
   background: 'var(--color-error-container)',
   color: 'var(--color-error)',
   border: 'none',
-  borderRadius: 'var(--radius-md)',
-  fontSize: 'var(--text-body-xl-size)',
+  borderRadius: 'var(--radius-lg)',
+  fontSize: 15,
   fontFamily: 'var(--font-family)',
   cursor: 'pointer',
 }
 
 const ghostBtnStyle = {
-  padding: '10px 14px',
+  padding: '11px 14px',
   minHeight: 44,
   background: 'transparent',
   color: 'var(--color-on-surface-variant)',
-  border: '1px solid var(--color-outline-variant)',
-  borderRadius: 'var(--radius-md)',
-  fontSize: 'var(--text-body-xl-size)',
+  border: '2px solid var(--color-outline-variant)',
+  borderRadius: 'var(--radius-lg)',
+  fontSize: 15,
   fontFamily: 'var(--font-family)',
   cursor: 'pointer',
 }
