@@ -1,11 +1,12 @@
 import asyncio
+import logging
 import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock
 import app.config as config
 from app.db import init_db, get_conn
 from app.services.photo_sources.base import PhotoSource, RemotePhotoRef
-from app.services.photo_service import PhotoService
+from app.services.photo_service import PhotoService, photo_refresh_loop
 
 
 class _FakeSource(PhotoSource):
@@ -136,3 +137,108 @@ def test_refresh_does_nothing_when_source_not_configured(tmp_path, monkeypatch):
     svc = PhotoService(src, cache_dir)
     asyncio.run(svc.refresh())  # should not crash, should not download anything
     assert svc.list_photos() == []
+
+
+# ---------------------------------------------------------------------------
+# New behaviour: startup delay, throttling, and logging
+# ---------------------------------------------------------------------------
+
+def test_refresh_loop_defers_first_refresh(monkeypatch):
+    """photo_refresh_loop must sleep startup_delay BEFORE the first refresh."""
+    import app.services.photo_service as ps
+
+    events: list = []
+
+    async def mock_sleep(n):
+        events.append(("sleep", n))
+        if len(events) >= 2:
+            raise asyncio.CancelledError()
+
+    class TrackingService:
+        async def refresh(self):
+            events.append("refresh")
+
+    monkeypatch.setattr(ps.asyncio, "sleep", mock_sleep)
+
+    try:
+        asyncio.run(photo_refresh_loop(TrackingService(), startup_delay=45))
+    except (asyncio.CancelledError, Exception):
+        pass
+
+    # First event must be the startup sleep, not a refresh
+    assert events[0] == ("sleep", 45), f"expected startup sleep first, got {events}"
+    assert "refresh" in events, "refresh was never called"
+
+
+def test_refresh_throttles_with_delay_between_downloads(tmp_path, monkeypatch):
+    """refresh() must sleep download_delay after each downloaded photo."""
+    import app.services.photo_service as ps
+
+    db_file = str(tmp_path / "test.db")
+    monkeypatch.setattr(config, "DB_PATH", db_file)
+    init_db()
+    cache_dir = tmp_path / "photos"
+
+    sleep_calls: list[float] = []
+
+    async def mock_sleep(n):
+        sleep_calls.append(n)
+
+    monkeypatch.setattr(ps.asyncio, "sleep", mock_sleep)
+
+    refs = [RemotePhotoRef(id="a"), RemotePhotoRef(id="b"), RemotePhotoRef(id="c")]
+    svc = PhotoService(_FakeSource(refs), cache_dir, download_delay=0.5)
+
+    asyncio.run(svc.refresh())
+
+    assert sleep_calls.count(0.5) == 3, (
+        f"expected 3 throttle sleeps (one per download), got {sleep_calls}"
+    )
+
+
+def test_refresh_no_delay_when_nothing_new(tmp_path, monkeypatch):
+    """When all photos are already cached, no download-delay sleep should occur."""
+    import app.services.photo_service as ps
+
+    db_file = str(tmp_path / "test.db")
+    monkeypatch.setattr(config, "DB_PATH", db_file)
+    init_db()
+    cache_dir = tmp_path / "photos"
+
+    refs = [RemotePhotoRef(id="x")]
+    src = _FakeSource(refs)
+    svc = PhotoService(src, cache_dir, download_delay=0.5)
+
+    asyncio.run(svc.refresh())  # first run: downloads x
+
+    sleep_calls: list[float] = []
+
+    async def mock_sleep(n):
+        sleep_calls.append(n)
+
+    monkeypatch.setattr(ps.asyncio, "sleep", mock_sleep)
+
+    asyncio.run(svc.refresh())  # second run: x already cached
+
+    assert 0.5 not in sleep_calls, (
+        f"no download-delay expected when nothing is new, got {sleep_calls}"
+    )
+
+
+def test_refresh_logs_progress(tmp_path, monkeypatch, caplog):
+    """refresh() must log: started, N new photos, each download, complete."""
+    db_file = str(tmp_path / "test.db")
+    monkeypatch.setattr(config, "DB_PATH", db_file)
+    init_db()
+    cache_dir = tmp_path / "photos"
+
+    refs = [RemotePhotoRef(id="p1"), RemotePhotoRef(id="p2")]
+    svc = PhotoService(_FakeSource(refs), cache_dir, download_delay=0.0)
+
+    with caplog.at_level(logging.INFO, logger="app.services.photo_service"):
+        asyncio.run(svc.refresh())
+
+    messages = " ".join(r.message for r in caplog.records)
+    assert "refresh started" in messages.lower()
+    assert "2" in messages  # N new photos
+    assert "complete" in messages.lower()

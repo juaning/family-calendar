@@ -11,9 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class PhotoService:
-    def __init__(self, source: PhotoSource, cache_dir: Path):
+    def __init__(self, source: PhotoSource, cache_dir: Path,
+                 download_delay: float = 0.5):
         self._source = source
         self._cache_dir = cache_dir
+        self._download_delay = download_delay
 
     def list_photos(self) -> list[dict]:
         try:
@@ -30,6 +32,8 @@ class PhotoService:
         if not self._source.is_configured():
             return
 
+        logger.info("photo refresh started")
+
         try:
             remote_refs = await self._source.fetch_remote_refs()
         except Exception:
@@ -43,10 +47,12 @@ class PhotoService:
         cached = {r["id"]: r["local_path"] for r in rows}
         cached_ids = set(cached)
 
-        # Download new photos
-        for ref in remote_refs:
-            if ref.id in cached_ids:
-                continue
+        new_refs = [r for r in remote_refs if r.id not in cached_ids]
+        logger.info("photo refresh: %d new photo(s) to fetch, %d already cached",
+                    len(new_refs), len(cached_ids))
+
+        # Download new photos one at a time with a throttle delay
+        for ref in new_refs:
             dest = self._cache_dir / f"{ref.id}.jpg"
             try:
                 await self._source.download(ref, dest)
@@ -59,6 +65,7 @@ class PhotoService:
                 logger.info("cached photo %s", ref.id)
             except Exception:
                 logger.exception("download failed for %s", ref.id)
+            await asyncio.sleep(self._download_delay)
 
         # Prune stale photos
         for photo_id, local_path in cached.items():
@@ -72,6 +79,8 @@ class PhotoService:
             except Exception:
                 logger.exception("failed to prune photo %s", photo_id)
 
+        logger.info("photo refresh complete")
+
 
 def _make_source(source_name: str, album_url: str) -> PhotoSource:
     if source_name == "syncthing":
@@ -83,10 +92,17 @@ def _make_source(source_name: str, album_url: str) -> PhotoSource:
 
 def make_photo_service() -> "PhotoService":
     source = _make_source(config.PHOTO_SOURCE, config.ICLOUD_SHARED_ALBUM_URL)
-    return PhotoService(source, Path(config.PHOTO_CACHE_DIR))
+    return PhotoService(
+        source,
+        Path(config.PHOTO_CACHE_DIR),
+        download_delay=config.PHOTO_DOWNLOAD_DELAY_SECONDS,
+    )
 
 
-async def photo_refresh_loop(service: "PhotoService") -> None:
+async def photo_refresh_loop(service: "PhotoService",
+                             startup_delay: float = 30.0) -> None:
+    logger.info("photo refresh loop starting; first refresh in %ds", int(startup_delay))
+    await asyncio.sleep(startup_delay)
     while True:
         try:
             await service.refresh()

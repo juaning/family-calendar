@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db import init_db
 from app.services.sync import sync_loop
 from app.services.photo_service import make_photo_service, photo_refresh_loop
+import app.config as config
 from app.routers.calendar import router as calendar_router
 from app.routers.chores import router as chores_router
 from app.routers.config import router as config_router
@@ -19,7 +20,10 @@ async def lifespan(app: FastAPI):
     app.state.photo_service = photo_service
     if not os.getenv("TESTING"):
         sync_task  = asyncio.create_task(sync_loop())
-        photo_task = asyncio.create_task(photo_refresh_loop(photo_service))
+        photo_task = asyncio.create_task(
+            photo_refresh_loop(photo_service,
+                               startup_delay=config.PHOTO_STARTUP_DELAY_SECONDS)
+        )
     else:
         sync_task = photo_task = None
     yield

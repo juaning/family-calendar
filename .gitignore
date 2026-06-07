@@ -4,13 +4,11 @@
 *.env
 credentials.json
 token.json
-secrets/
-!secrets/
+secrets/*
 !secrets/.gitkeep
 
-# Backend runtime data
-backend/app/data/
-!backend/app/data/
+# Backend runtime data (keep the directory itself via .gitkeep, ignore contents)
+backend/app/data/*
 !backend/app/data/.gitkeep
 __pycache__/
 *.py[cod]
