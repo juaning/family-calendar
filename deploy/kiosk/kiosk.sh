@@ -25,6 +25,7 @@ rm -f  ~/.config/chromium/Default/Last\ Session 2>/dev/null
 while true; do
   "$CHROMIUM" \
     --kiosk \
+    --password-store=basic \
     --noerrdialogs \
     --disable-infobars \
     --incognito \
