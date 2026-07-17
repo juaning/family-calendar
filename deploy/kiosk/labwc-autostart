@@ -1,2 +1,3 @@
 # labwc autostart — append this line to ~/.config/labwc/autostart on the Pi
+unclutter --timeout 1 --hide-on-touch &
 bash "$HOME/family-calendar/deploy/kiosk/kiosk.sh" &

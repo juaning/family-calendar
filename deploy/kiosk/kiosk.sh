@@ -21,8 +21,10 @@ done
 rm -rf ~/.config/chromium/Default/Crash\ Reports 2>/dev/null
 rm -f  ~/.config/chromium/Default/Last\ Session 2>/dev/null
 
-# Relaunch on crash so a black screen never persists
+# Relaunch on crash, but back off if it exits too quickly
+# (prevents a tight respawn loop pegging the CPU)
 while true; do
+  STARTED=$(date +%s)
   "$CHROMIUM" \
     --kiosk \
     --password-store=basic \
@@ -34,7 +36,14 @@ while true; do
     --disable-pinch \
     --overscroll-history-navigation=0 \
     --check-for-update-interval=31536000 \
+    --no-first-run \
     "$APP_URL"
-  echo "Chromium exited; relaunching in 3s..." >&2
-  sleep 3
+  UPTIME=$(( $(date +%s) - STARTED ))
+  if [ "$UPTIME" -lt 10 ]; then
+    echo "Chromium exited after ${UPTIME}s (too fast) — waiting 30s before retry..." >&2
+    sleep 30
+  else
+    echo "Chromium exited after ${UPTIME}s — relaunching in 3s..." >&2
+    sleep 3
+  fi
 done
